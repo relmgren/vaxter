@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Växtskötaren</title>
+  <style>
+    :root {
+      --bg: #f4f6f3;
+      --card-bg: #ffffff;
+      --primary: #2d6a4f;
+      --primary-light: #d8f3dc;
+      --accent: #52b788;
+      --text: #1b261e;
+      --text-muted: #5c6b61;
+      --danger: #d90429;
+      --border: #e2e8e4;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background-color: var(--bg); color: var(--text); padding: 1.5rem 1rem; max-width: 800px; margin: 0 auto; }
+    header { text-align: center; margin-bottom: 2rem; }
+    h1 { color: var(--primary); font-size: 1.8rem; margin-bottom: 0.5rem; }
+    p.sub { color: var(--text-muted); font-size: 0.95rem; }
+
+    .notif-banner {
+      background: var(--primary-light);
+      border: 1px solid var(--accent);
+      padding: 1rem;
+      border-radius: 12px;
+      margin-bottom: 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    button {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 0.6rem 1rem;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: background 0.2s;
+    }
+    button:hover { background: #1b4332; }
+
+    .grid { display: grid; gap: 1.5rem; }
+    .card {
+      background: var(--card-bg);
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      padding: 1.25rem;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+    }
+    .card h2 { font-size: 1.25rem; color: var(--primary); margin-bottom: 0.2rem; }
+    .latin { font-style: italic; color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1rem; }
+    
+    .task-list { display: flex; flex-direction: column; gap: 0.75rem; }
+    .task {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.6rem 0.8rem;
+      background: #fafbfa;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+    .task-info { display: flex; flex-direction: column; gap: 0.2rem; }
+    .task-name { font-weight: 600; font-size: 0.95rem; }
+    .task-due { font-size: 0.8rem; color: var(--text-muted); }
+    .task-due.overdue { color: var(--danger); font-weight: 600; }
+
+    .btn-action {
+      background: var(--accent);
+      padding: 0.4rem 0.8rem;
+      font-size: 0.8rem;
+    }
+    .btn-action:hover { background: var(--primary); }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>🌱 Växtskötaren</h1>
+    <p class="sub">Håll koll på vattning, dammtorkning och skötsel</p>
+  </header>
+
+  <div class="notif-banner" id="notifBanner">
+    <span>Få påminnelser i webbläsaren när det är dags för skötsel:</span>
+    <button onclick="requestNotification()">Aktivera notifikationer</button>
+  </div>
+
+  <div class="grid" id="plantGrid"></div>
+
+  <script>
+    const DEFAULT_PLANTS = [
+      {
+        id: "ficus",
+        name: "Fönsterfikus ('Robusta')",
+        latin: "Ficus elastica",
+        tasks: {
+          water: { name: "Vattna (låt torka till hälften)", days: 9, lastDone: Date.now() },
+          dust: { name: "Torka av bladen från damm", days: 14, lastDone: Date.now() },
+          check: { name: "Kolla drag & ljus", days: 30, lastDone: Date.now() }
+        }
+      },
+      {
+        id: "schefflera",
+        name: "Paraplyarboria ('Nora')",
+        latin: "Schefflera arboricola",
+        tasks: {
+          water: { name: "Vattna (låt torka lätt på ytan)", days: 7, lastDone: Date.now() },
+          dust: { name: "Duscha av kronan", days: 21, lastDone: Date.now() },
+          check: { name: "Kolla bandet runt stammen / toppa", days: 45, lastDone: Date.now() }
+        }
+      },
+      {
+        id: "peace_lily",
+        name: "Fredskalla ('Torelli')",
+        latin: "Spathiphyllum",
+        tasks: {
+          water: { name: "Vattna (håll jämnt fuktig)", days: 4, lastDone: Date.now() },
+          dust: { name: "Torka av blad / spraya med vatten", days: 10, lastDone: Date.now() },
+          check: { name: "Klipp bort vissna blomstänglar", days: 20, lastDone: Date.now() }
+        }
+      },
+      {
+        id: "orchid",
+        name: "Brudorkidé",
+        latin: "Phalaenopsis",
+        tasks: {
+          water: { name: "Doppvattna (om rötterna är silvergrå)", days: 8, lastDone: Date.now() },
+          dust: { name: "Torka av bladen försiktigt", days: 14, lastDone: Date.now() },
+          check: { name: "Kolla rötternas färg i plastkrukan", days: 5, lastDone: Date.now() }
+        }
+      }
+    ];
+
+    let plants = JSON.parse(localStorage.getItem('plant_data')) || DEFAULT_PLANTS;
+
+    function savePlants() {
+      localStorage.setItem('plant_data', JSON.stringify(plants));
+      render();
+      checkDueNotifications();
+    }
+
+    function markDone(plantIndex, taskKey) {
+      plants[plantIndex].tasks[taskKey].lastDone = Date.now();
+      savePlants();
+    }
+
+    function getDueDays(lastDone, intervalDays) {
+      const msPerDay = 24 * 60 * 60 * 1000;
+      const elapsedDays = (Date.now() - lastDone) / msPerDay;
+      return Math.round(intervalDays - elapsedDays);
+    }
+
+    function render() {
+      const container = document.getElementById('plantGrid');
+      container.innerHTML = '';
+
+      plants.forEach((plant, pIdx) => {
+        const card = document.createElement('div');
+        card.className = 'card';
+
+        let tasksHtml = '';
+        for (const [key, task] of Object.entries(plant.tasks)) {
+          const daysLeft = getDueDays(task.lastDone, task.days);
+          const isOverdue = daysLeft <= 0;
+          const statusText = isOverdue 
+            ? `<span class="task-due overdue">Dags nu! (${Math.abs(daysLeft)} d sedan förfall)</span>`
+            : `<span class="task-due">Om ${daysLeft} dagar</span>`;
+
+          tasksHtml += `
+            <div class="task">
+              <div class="task-info">
+                <span class="task-name">${task.name}</span>
+                ${statusText}
+              </div>
+              <button class="btn-action" onclick="markDone(${pIdx}, '${key}')">Klart!</button>
+            </div>
+          `;
+        }
+
+        card.innerHTML = `
+          <h2>${plant.name}</h2>
+          <div class="latin">${plant.latin}</div>
+          <div class="task-list">${tasksHtml}</div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function requestNotification() {
+      if ("Notification" in window) {
+        Notification.requestPermission().then(permission => {
+          if (permission === "granted") {
+            document.getElementById('notifBanner').style.display = 'none';
+            new Notification("Växtskötaren redo!", { body: "Du får notiser när någon av dina växter behöver omsorg." });
+            checkDueNotifications();
+          }
+        });
+      }
+    }
+
+    function checkDueNotifications() {
+      if (!("Notification" in window) || Notification.permission !== "granted") return;
+
+      plants.forEach(plant => {
+        for (const [key, task] of Object.entries(plant.tasks)) {
+          const daysLeft = getDueDays(task.lastDone, task.days);
+          if (daysLeft <= 0) {
+            new Notification(`Dags att ta hand om: ${plant.name}`, {
+              body: `${task.name}`
+            });
+          }
+        }
+      });
+    }
+
+    if (Notification.permission === "granted") {
+      document.getElementById('notifBanner').style.display = 'none';
+    }
+
+    render();
+    checkDueNotifications();
+  </script>
+</body>
+</html>
