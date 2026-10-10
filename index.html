@@ -115,9 +115,9 @@
         img: "thumbs/ficus-elastica-robusta.jpg",
         latin: "Ficus elastica",
         tasks: {
-          water: { name: "Vattna (låt torka till hälften)", days: 9, lastDone: Date.now() },
-          dust: { name: "Torka av bladen från damm", days: 14, lastDone: Date.now() },
-          check: { name: "Kolla drag & ljus", days: 30, lastDone: Date.now() }
+          water: { name: "Vattna (låt torka till hälften)", days: 9, lastDone: null },
+          dust: { name: "Torka av bladen från damm", days: 14, lastDone: null },
+          check: { name: "Kolla drag & ljus", days: 30, lastDone: null }
         }
       },
       {
@@ -126,9 +126,9 @@
         img: "thumbs/schiffora-arboricola.jpg",
         latin: "Schefflera arboricola",
         tasks: {
-          water: { name: "Vattna (låt torka lätt på ytan)", days: 7, lastDone: Date.now() },
-          dust: { name: "Duscha av kronan", days: 21, lastDone: Date.now() },
-          check: { name: "Kolla bandet runt stammen / toppa", days: 45, lastDone: Date.now() }
+          water: { name: "Vattna (låt torka lätt på ytan)", days: 7, lastDone: null },
+          dust: { name: "Duscha av kronan", days: 21, lastDone: null },
+          check: { name: "Kolla bandet runt stammen / toppa", days: 45, lastDone: null }
         }
       },
       {
@@ -137,9 +137,9 @@
         img: "thumbs/fredskalla.jpg",
         latin: "Spathiphyllum",
         tasks: {
-          water: { name: "Vattna (håll jämnt fuktig)", days: 4, lastDone: Date.now() },
-          dust: { name: "Torka av blad / spraya med vatten", days: 10, lastDone: Date.now() },
-          check: { name: "Klipp bort vissna blomstänglar", days: 20, lastDone: Date.now() }
+          water: { name: "Vattna (håll jämnt fuktig)", days: 4, lastDone: null },
+          dust: { name: "Torka av blad / spraya med vatten", days: 10, lastDone: null },
+          check: { name: "Klipp bort vissna blomstänglar", days: 20, lastDone: null }
         }
       },
       {
@@ -148,14 +148,18 @@
         img: "thumbs/orkide.jpg",
         latin: "Phalaenopsis",
         tasks: {
-          water: { name: "Doppvattna (om rötterna är silvergrå)", days: 8, lastDone: Date.now() },
-          dust: { name: "Torka av bladen försiktigt", days: 14, lastDone: Date.now() },
-          check: { name: "Kolla rötternas färg i plastkrukan", days: 5, lastDone: Date.now() }
+          water: { name: "Doppvattna (om rötterna är silvergrå)", days: 8, lastDone: null },
+          dust: { name: "Torka av bladen försiktigt", days: 14, lastDone: null },
+          check: { name: "Kolla rötternas färg i plastkrukan", days: 5, lastDone: null }
         }
       }
     ];
 
-    let plants = JSON.parse(localStorage.getItem('plant_data')) || DEFAULT_PLANTS;
+    // v2 nollställer gammal data där allt sparades som nyss gjort
+    const STORAGE_KEY = 'plant_data_v2';
+    localStorage.removeItem('plant_data');
+
+    let plants = JSON.parse(localStorage.getItem(STORAGE_KEY)) || DEFAULT_PLANTS;
 
     // Sparad data kan sakna (eller ha en gammal) bildsökväg
     plants.forEach(plant => {
@@ -164,7 +168,7 @@
     });
 
     function savePlants() {
-      localStorage.setItem('plant_data', JSON.stringify(plants));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(plants));
       render();
       checkDueNotifications();
     }
@@ -174,7 +178,9 @@
       savePlants();
     }
 
+    // null = aldrig gjord, dvs. dags direkt
     function getDueDays(lastDone, intervalDays) {
+      if (lastDone == null) return null;
       const msPerDay = 24 * 60 * 60 * 1000;
       const elapsedDays = (Date.now() - lastDone) / msPerDay;
       return Math.round(intervalDays - elapsedDays);
@@ -191,10 +197,14 @@
         let tasksHtml = '';
         for (const [key, task] of Object.entries(plant.tasks)) {
           const daysLeft = getDueDays(task.lastDone, task.days);
-          const isOverdue = daysLeft <= 0;
-          const statusText = isOverdue 
-            ? `<span class="task-due overdue">Dags nu! (${Math.abs(daysLeft)} d sedan förfall)</span>`
-            : `<span class="task-due">Om ${daysLeft} dagar</span>`;
+          let statusText;
+          if (daysLeft === null) {
+            statusText = `<span class="task-due overdue">Dags nu! (aldrig gjord)</span>`;
+          } else if (daysLeft <= 0) {
+            statusText = `<span class="task-due overdue">Dags nu! (${Math.abs(daysLeft)} d sedan förfall)</span>`;
+          } else {
+            statusText = `<span class="task-due">Om ${daysLeft} dagar</span>`;
+          }
 
           tasksHtml += `
             <div class="task">
@@ -239,7 +249,7 @@
       plants.forEach(plant => {
         for (const [key, task] of Object.entries(plant.tasks)) {
           const daysLeft = getDueDays(task.lastDone, task.days);
-          if (daysLeft <= 0) {
+          if (daysLeft === null || daysLeft <= 0) {
             new Notification(`Dags att ta hand om: ${plant.name}`, {
               body: `${task.name}`
             });
