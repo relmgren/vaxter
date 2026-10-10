@@ -57,7 +57,18 @@
       box-shadow: 0 2px 6px rgba(0,0,0,0.04);
     }
     .card h2 { font-size: 1.25rem; color: var(--primary); margin-bottom: 0.2rem; }
-    .latin { font-style: italic; color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1rem; }
+    .latin { font-style: italic; color: var(--text-muted); font-size: 0.85rem; }
+
+    .plant-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; }
+    .plant-img {
+      width: 72px;
+      height: 72px;
+      flex-shrink: 0;
+      object-fit: cover;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--primary-light);
+    }
     
     .task-list { display: flex; flex-direction: column; gap: 0.75rem; }
     .task {
@@ -101,7 +112,7 @@
       {
         id: "ficus",
         name: "Fönsterfikus ('Robusta')",
-        img: "ficus-elastica-robusta.jpg",
+        img: "thumbs/ficus-elastica-robusta.jpg",
         latin: "Ficus elastica",
         tasks: {
           water: { name: "Vattna (låt torka till hälften)", days: 9, lastDone: Date.now() },
@@ -112,7 +123,7 @@
       {
         id: "schefflera",
         name: "Paraplyarboria ('Nora')",
-        img: "schiffora-arboricola.jpg",
+        img: "thumbs/schiffora-arboricola.jpg",
         latin: "Schefflera arboricola",
         tasks: {
           water: { name: "Vattna (låt torka lätt på ytan)", days: 7, lastDone: Date.now() },
@@ -123,7 +134,7 @@
       {
         id: "peace_lily",
         name: "Fredskalla ('Torelli')",
-        img: "fresdkalla.jpg",
+        img: "thumbs/fredskalla.jpg",
         latin: "Spathiphyllum",
         tasks: {
           water: { name: "Vattna (håll jämnt fuktig)", days: 4, lastDone: Date.now() },
@@ -134,7 +145,7 @@
       {
         id: "orchid",
         name: "Brudorkidé",
-        img: "orkide.jpg",
+        img: "thumbs/orkide.jpg",
         latin: "Phalaenopsis",
         tasks: {
           water: { name: "Doppvattna (om rötterna är silvergrå)", days: 8, lastDone: Date.now() },
@@ -145,6 +156,12 @@
     ];
 
     let plants = JSON.parse(localStorage.getItem('plant_data')) || DEFAULT_PLANTS;
+
+    // Sparad data kan sakna (eller ha en gammal) bildsökväg
+    plants.forEach(plant => {
+      const fallback = DEFAULT_PLANTS.find(p => p.id === plant.id);
+      if (fallback) plant.img = fallback.img;
+    });
 
     function savePlants() {
       localStorage.setItem('plant_data', JSON.stringify(plants));
@@ -191,8 +208,13 @@
         }
 
         card.innerHTML = `
-          <h2>${plant.name}</h2>
-          <div class="latin">${plant.latin}</div>
+          <div class="plant-header">
+            <img class="plant-img" src="${plant.img}" alt="${plant.name}" loading="lazy">
+            <div>
+              <h2>${plant.name}</h2>
+              <div class="latin">${plant.latin}</div>
+            </div>
+          </div>
           <div class="task-list">${tasksHtml}</div>
         `;
         container.appendChild(card);
